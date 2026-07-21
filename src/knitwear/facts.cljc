@@ -8,7 +8,16 @@
   prove the governor contract end-to-end, not a claim of global coverage.
   Adding a jurisdiction is additive: one map entry citing a real official
   source -- never fabricate a jurisdiction's requirements to make coverage
-  look bigger.")
+  look bigger.
+
+  Citations verified 2026-07-22: KHM plant-registration and labor-standards
+  confirmed directly against the 1997 Labor Law's own primary text (Kram
+  dated March 13, 1997, ASEAN-hosted mirror), Articles 17 and 137, and
+  independently cross-checked against the Council for the Development of
+  Cambodia's (a government body) own summary page. KHM quality-standards
+  confirmed against the government-hosted (cdc.gov.kh) summary of the Law
+  on Standards of Cambodia (Royal Kram No. NS/RKM/0607/013, 2007). All
+  HIGH confidence.")
 
 ;; ----------------------------- jurisdiction catalog -----------------------------
 
@@ -70,7 +79,23 @@
      :machinery-safety {:description "Knitting-line equipment safety requirements (guarding, interlocks)"
                        :required true
                        :spec-basis "ISO 11111-1:2016 (Textile machinery -- Safety requirements -- Part 1: Common requirements)"
-                       :evidence [:machine-guarding-audit :interlock-test]}}}})
+                       :evidence [:machine-guarding-audit :interlock-test]}}}
+
+   :KHM
+   {:name "Cambodia"
+    :requirements
+    {:plant-registration {:description "Declaration to the Ministry in Charge of Labor before opening a knitwear manufacturing enterprise or establishment"
+                         :required true
+                         :spec-basis "Labor Law of the Kingdom of Cambodia (Kram dated March 13, 1997), Article 17"
+                         :evidence [:enterprise-declaration :plant-license]}
+     :labor-standards {:description "Normal working-hours limit (8 hours/day, 48 hours/week) and payroll-record obligations for enterprise workers"
+                      :required true
+                      :spec-basis "Labor Law of the Kingdom of Cambodia (Kram dated March 13, 1997), Article 137"
+                      :evidence [:worker-contract :wage-record :payroll-record]}
+     :quality-standards {:description "Conformity assessment and quality-standards certification through the national standards body"
+                        :required true
+                        :spec-basis "Law on Standards of Cambodia, Royal Kram No. NS/RKM/0607/013 (24 June 2007), establishing the Institute of Standards of Cambodia (ISC) under the Ministry of Industry, Mines and Energy"
+                        :evidence [:quality-cert :conformity-assessment]}}}})
 
 ;; ----------------------------- coverage reporting (honest) -----------------------------
 

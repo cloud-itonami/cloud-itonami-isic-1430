@@ -3,17 +3,18 @@
             [knitwear.facts :as facts]))
 
 (deftest catalog-has-jurisdictions
-  "Catalog should define at least 3 jurisdictions with official spec-basis."
-  (is (>= (count facts/catalog) 3))
+  "Catalog should define at least 4 jurisdictions with official spec-basis."
+  (is (>= (count facts/catalog) 4))
   (is (contains? facts/catalog :VNM))
   (is (contains? facts/catalog :BGD))
-  (is (contains? facts/catalog :USA)))
+  (is (contains? facts/catalog :USA))
+  (is (contains? facts/catalog :KHM)))
 
 (deftest jurisdiction-coverage-honest
   "Coverage reporting should be honest about scope."
   (let [cov (facts/coverage)]
     (is (map? cov))
-    (is (>= (:implemented cov) 3))
+    (is (>= (:implemented cov) 4))
     (is (= (:worldwide-jurisdictions cov) 194))
     (is (> (:coverage-pct cov) 0))
     (is (contains? cov :note))))
@@ -43,7 +44,13 @@
 
   (testing "USA complete requirements"
     (let [checklist {:tariff-cert true :origin-marking true :wage-hour-record true :safety-training true :fiber-analysis true :label-affidavit true :machine-guarding-audit true :interlock-test true}]
-      (is (facts/required-evidence-satisfied? :USA checklist)))))
+      (is (facts/required-evidence-satisfied? :USA checklist))))
+
+  (testing "Cambodia complete requirements"
+    (let [checklist {:enterprise-declaration true :plant-license true
+                     :worker-contract true :wage-record true :payroll-record true
+                     :quality-cert true :conformity-assessment true}]
+      (is (facts/required-evidence-satisfied? :KHM checklist)))))
 
 (deftest spec-basis-citations
   "All spec-basis citations should be strings (official references)."
