@@ -9,4 +9,49 @@
  :itonami.blueprint/required-technologies [:robotics :identity :forms :dmn :bpmn :audit-ledger :cae]
  :itonami.blueprint/optional-technologies []
  :itonami.blueprint/status :public-oss
- :itonami.blueprint/maturity :implemented}
+ :itonami.blueprint/maturity :implemented
+ :itonami.blueprint/implemented-slice
+ "KnitwearAdvisor ⊣ KnitwearGovernor, langgraph-clj StateGraph
+ (langgraph.graph, knitwear.operation/build), append-only audit ledger
+ (knitwear.store/ledger + append-ledger!, MemStore). Fixes a prior gap:
+ this blueprint claimed :itonami.blueprint/maturity :implemented, but
+ there was no `operation.cljc` and no `langgraph.graph` usage anywhere
+ in `src/` -- `knitwear.sim` hand-chained
+ `advisor/*-proposal -> governor/evaluate` directly with plain function
+ calls, a fake StateGraph worse than the usual deferred-stub pattern
+ since no StateGraph was even attempted (zero `require` of
+ `langgraph.graph`, zero use of `state-graph`/`add-node`/
+ `compile-graph`), despite the real `io.github.com-junkawasaki/langgraph-clj`
+ dependency already sitting correctly in `deps.edn`'s main `:deps` map.
+ No audit-ledger append function existed anywhere in the codebase either
+ -- only prose comments in other namespaces mentioned an audit ledger,
+ aspirational, not real. Now: a genuinely compiled StateGraph
+ (`:intake -> :advise -> :govern -> :decide -+-> :commit /
+ :request-approval -> :commit / :hold`) with
+ `interrupt-before #{:request-approval}` + in-memory checkpointer for
+ real human-in-the-loop resume, and a real `knitwear.store/ledger` +
+ `append-ledger!` genuinely wired into the `:commit`/`:hold` graph
+ nodes. `knitwear.advisor`'s four proposal builders and
+ `knitwear.governor`'s hard/soft checks (closed op-allowlist,
+ effect-must-be-:propose, plant/batch verification chain,
+ process-control-forbidden keyword block, safety-concern-always-
+ escalates, confidence floor / high-stakes-actuation escalation) are
+ reused UNCHANGED -- this fix only wires the existing knitwear domain
+ policy into a real compiled graph and a real ledger, it does not
+ redesign it. `knitwear.phase` (formerly a fake graph-topology-as-EDN
+ stand-in, `ADVISOR-NODE`/`GOVERNOR-NODE`/`HOLD-NODE`/`COMPLETE-NODE`,
+ that no graph ever consumed) is now a real 0->3 rollout auto-commit
+ gate: phase 1 auto-commits maintenance scheduling only, phase 2 adds
+ verified production-batch logging, phase 3 has the same auto-commit
+ set because safety-concern flagging and shipment coordination NEVER
+ auto-commit at any phase (two independent layers -- the Governor's own
+ soft-violation gates AND `phase/never-auto-commit`). Proven end-to-end
+ by `test/knitwear/operation_test.clj` (ledger stays empty until a real
+ commit, hold-until-approved for both safety-concern and high-stakes
+ shipment coordination, governor rejection blocks commit, phase-hold for
+ clean-but-not-yet-eligible proposals) through the REAL compiled graph,
+ plus a `clojure -M:dev-local:run` demo runner producing real ledger
+ entries for every scenario. 54 tests / 194 assertions green
+ (`clojure -M:dev-local:test`), clj-kondo 0 errors. CI
+ (`.github/workflows/ci.yml`, sibling-checkout pattern for
+ `:local/root` deps) was missing and is added in this fix."}

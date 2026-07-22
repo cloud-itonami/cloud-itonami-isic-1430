@@ -56,3 +56,31 @@
    :value {:evidence {:export-permit true :shipping-manifest true :invoice-attached true}
            :confidence 0.89
            :detail "Shipment ready for export coordination"}})
+
+;; ----------------------------- request dispatch (operation graph seam) -----------------------------
+
+(defn advise
+  "Single entry point `knitwear.operation`'s `:advise` graph node calls.
+  Dispatches a request map (`{:op .. :subject .. :concern-type ..}`) to
+  the matching op-specific proposal builder above -- those builders stay
+  the reusable/unit-testable primitives, UNCHANGED; this is purely
+  routing. An op outside the closed allowlist still produces a
+  (non-conforming) proposal here -- `knitwear.governor`'s own closed
+  op-allowlist check independently rejects it regardless of what this
+  dispatcher returns, the same 'never trust the advisor's own claim'
+  discipline the Governor uses everywhere else."
+  [advisor request]
+  (let [{:keys [op subject concern-type]} request]
+    (case op
+      :proposal/log-production-batch (batch-log-proposal advisor subject)
+      :proposal/schedule-maintenance (maintenance-proposal advisor subject)
+      :proposal/flag-safety-concern  (safety-concern-proposal advisor subject concern-type)
+      :actuation/coordinate-shipment (shipment-proposal advisor subject)
+      ;; Unknown op -- Governor's closed allowlist independently rejects
+      ;; this regardless of what's returned here.
+      {:op op
+       :subject subject
+       :effect :propose
+       :cites []
+       :value {:confidence 0.0
+               :detail (str "Unrecognized operation: " op)}})))
