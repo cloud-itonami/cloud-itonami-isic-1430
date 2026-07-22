@@ -17,6 +17,20 @@
   Cambodia's (a government body) own summary page. KHM quality-standards
   confirmed against the government-hosted (cdc.gov.kh) summary of the Law
   on Standards of Cambodia (Royal Kram No. NS/RKM/0607/013, 2007). All
+  HIGH confidence.
+
+  Citations verified 2026-07-22: FRA extended-producer-responsibility
+  confirmed via two independent WebFetch reads of legifrance.gouv.fr,
+  Code de l'environnement Article L541-10-1, category 11: 'Les produits
+  textiles d'habillement, les chaussures ou le linge de maison neufs
+  destines aux particuliers ... les produits textiles neufs pour la
+  maison' (clothing textiles, footwear, and new household linen sold to
+  private individuals), effective 1 January 2020 for the home-textile
+  extension, most recently amended by Loi n2024-364 du 22 avril 2024
+  art. 15. Direct curl fetch returned HTTP 403 both with a default and a
+  full browser user-agent (legifrance.gouv.fr's known recurring anti-bot
+  block, same failure mode handled the same way in prior iterations),
+  so the two independent WebFetch quotes are the primary verification.
   HIGH confidence.")
 
 ;; ----------------------------- jurisdiction catalog -----------------------------
@@ -95,7 +109,16 @@
      :quality-standards {:description "Conformity assessment and quality-standards certification through the national standards body"
                         :required true
                         :spec-basis "Law on Standards of Cambodia, Royal Kram No. NS/RKM/0607/013 (24 June 2007), establishing the Institute of Standards of Cambodia (ISC) under the Ministry of Industry, Mines and Energy"
-                        :evidence [:quality-cert :conformity-assessment]}}}})
+                        :evidence [:quality-cert :conformity-assessment]}}}
+
+   :FRA
+   {:name "France"
+    :requirements
+    {:extended-producer-responsibility
+     {:description "Producer/importer of new knitted-apparel and household-linen products sold to French private individuals must join (or set up) an approved eco-organisme and fund/organize the products' end-of-life waste prevention and management (collection, reuse, recycling)"
+      :required true
+      :spec-basis "Code de l'environnement Art. L541-10-1, category 11 (produits textiles d'habillement, chaussures, linge de maison)"
+      :evidence [:eco-organisme-membership :eco-contribution-paid]}}}})
 
 ;; ----------------------------- coverage reporting (honest) -----------------------------
 

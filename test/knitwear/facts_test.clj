@@ -3,21 +3,37 @@
             [knitwear.facts :as facts]))
 
 (deftest catalog-has-jurisdictions
-  "Catalog should define at least 4 jurisdictions with official spec-basis."
-  (is (>= (count facts/catalog) 4))
+  "Catalog should define at least 5 jurisdictions with official spec-basis."
+  (is (>= (count facts/catalog) 5))
   (is (contains? facts/catalog :VNM))
   (is (contains? facts/catalog :BGD))
   (is (contains? facts/catalog :USA))
-  (is (contains? facts/catalog :KHM)))
+  (is (contains? facts/catalog :KHM))
+  (is (contains? facts/catalog :FRA)))
 
 (deftest jurisdiction-coverage-honest
   "Coverage reporting should be honest about scope."
   (let [cov (facts/coverage)]
     (is (map? cov))
-    (is (>= (:implemented cov) 4))
+    (is (>= (:implemented cov) 5))
     (is (= (:worldwide-jurisdictions cov) 194))
     (is (> (:coverage-pct cov) 0))
     (is (contains? cov :note))))
+
+(deftest france-extended-producer-responsibility
+  "France (FRA) has an extended-producer-responsibility citation distinct in
+  kind from the manufacturing-safety/labor-standards shape of VNM/BGD/USA/KHM:
+  a post-consumer waste-management obligation, not a production-side rule."
+  (let [reqs (facts/requirement-citations :FRA)]
+    (is (map? reqs))
+    (is (contains? reqs :extended-producer-responsibility))
+    (doseq [[_key req] reqs]
+      (is (:spec-basis req) (str "Requirement should have spec-basis: " _key))
+      (is (seq (:evidence req)) (str "Requirement should list evidence checklist: " _key)))
+    (is (facts/required-evidence-satisfied? :FRA
+          {:eco-organisme-membership true :eco-contribution-paid true}))
+    (is (not (facts/required-evidence-satisfied? :FRA
+               {:eco-organisme-membership true})))))
 
 (deftest vietnam-requirements
   "Vietnam jurisdiction should have official spec-basis for all requirements."
