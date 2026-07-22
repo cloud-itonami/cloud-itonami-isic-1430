@@ -2,7 +2,20 @@
   "In-memory store for knitwear (knitted/crocheted apparel) manufacturing
   plant operations state.
   This is a reference implementation; production systems would use Datomic
-  or similar persistent event store for audit and replay.")
+  or similar persistent event store for audit and replay.
+
+  The append-only audit ledger (`ledger`/`append-ledger!`) is this
+  actor's core missing plumbing before this fix: no such function
+  existed anywhere in the codebase -- only prose comments in other
+  namespaces' docstrings *mentioned* an audit ledger, aspirational, not
+  real. `knitwear.operation`'s `:commit`/`:hold` graph nodes now append
+  every committed/held/approval-rejected decision fact here, so a
+  plant's operating history (every `:proposal/log-production-batch` /
+  `:proposal/schedule-maintenance` / `:proposal/flag-safety-concern` /
+  `:actuation/coordinate-shipment` decision) is always a query over an
+  immutable log -- the same discipline every sibling
+  `cloud-itonami-isic-*` actor's ledger provides. The ledger stays
+  append-only.")
 
 ;; ----------------------------- store initialization -----------------------------
 
@@ -37,7 +50,8 @@
            :maintenance-log {
              "maint-001" {:equipment "circular-knitting-machine-07"
                          :last-service "2026-06-20"
-                         :status :operational}}})})
+                         :status :operational}}
+           :ledger []})})
 
 ;; ----------------------------- accessors -----------------------------
 
@@ -91,3 +105,19 @@
     (and batch-id
          (batch-verified? st batch-id)
          (batch-plant-verified? st batch-id))))
+
+;; ----------------------------- audit ledger (append-only) -----------------------------
+
+(defn ledger
+  "The append-only audit ledger: every committed/held/approval-rejected
+  decision fact, in append order."
+  [st]
+  (:ledger @(:data st) []))
+
+(defn append-ledger!
+  "Append one immutable decision fact to the ledger. Returns the fact.
+  Genuinely wired into `knitwear.operation`'s `:commit`/`:hold` graph
+  nodes -- not test-only plumbing."
+  [st fact]
+  (swap! (:data st) update :ledger (fnil conj []) fact)
+  fact)
