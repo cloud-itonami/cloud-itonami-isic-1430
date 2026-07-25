@@ -5,9 +5,8 @@
             [knitwear.governor :as governor]
             [knitwear.registry :as registry]))
 
-(deftest op-allowlist-hard-gate
-  "Closed op-allowlist is a HARD gate: any op outside the allowlist is
-  rejected outright, no exceptions."
+(deftest ^{:doc "Closed op-allowlist is a HARD gate: any op outside the allowlist is
+  rejected outright, no exceptions."} op-allowlist-hard-gate
   (let [st (store/mem-store)
         proposal {:op :actuation/set-knitting-parameters
                   :subject "circular-knitting-machine-07"
@@ -21,8 +20,7 @@
       (is (seq (:hard-violations eval)) "Should have hard violations")
       (is (some #(= (:rule %) :op-not-allowed) (:hard-violations eval))))))
 
-(deftest effect-not-propose-hard-gate
-  "Effect must always be :propose -- this actor never actuates directly."
+(deftest ^{:doc "Effect must always be :propose -- this actor never actuates directly."} effect-not-propose-hard-gate
   (let [st (store/mem-store)
         proposal {:op :proposal/log-production-batch
                   :subject "batch-001"
@@ -36,10 +34,9 @@
       (is (some #(= (:rule %) :effect-not-propose) (:hard-violations eval))
         "Should have effect-not-propose violation"))))
 
-(deftest process-control-block
-  "HARD BLOCK, permanent: proposals mentioning knitting-machine tension,
+(deftest ^{:doc "HARD BLOCK, permanent: proposals mentioning knitting-machine tension,
   needle, carriage, or other equipment-control parameters are immediately
-  rejected. Those remain engineer exclusive authority."
+  rejected. Those remain engineer exclusive authority."} process-control-block
   (let [st (store/mem-store)
         proposal {:op :proposal/log-production-batch
                   :subject "batch-001"
@@ -53,10 +50,9 @@
       (is (some #(= (:rule %) :process-control-forbidden) (:hard-violations eval))
         "Should have process-control-forbidden violation"))))
 
-(deftest safety-concern-always-escalates
-  "Safety concerns ALWAYS escalate to human -- this is an ESCALATE gate
+(deftest ^{:doc "Safety concerns ALWAYS escalate to human -- this is an ESCALATE gate
   (soft violation, human sign-off required), not an outright hard block,
-  so a well-formed concern proposal is not :holds?."
+  so a well-formed concern proposal is not :holds?."} safety-concern-always-escalates
   (let [st (store/mem-store)
         adv (advisor/mock-advisor)
         concern-proposal (advisor/safety-concern-proposal adv "batch-002" "unusual-vibration")]
@@ -66,10 +62,9 @@
       (is (some #(= (:rule %) :safety-concern-escalates) (:soft-violations eval))
         "Should have safety-concern-escalates soft violation"))))
 
-(deftest shipment-requires-escalation
-  "Shipment coordination is high-stakes actuation and requires human
+(deftest ^{:doc "Shipment coordination is high-stakes actuation and requires human
   sign-off, even when the underlying batch/plant are fully verified and
-  clean."
+  clean."} shipment-requires-escalation
   (let [st (store/mem-store)
         adv (advisor/mock-advisor)
         shipment-proposal (advisor/shipment-proposal adv "ship-001")]
@@ -79,9 +74,8 @@
       (is (some #(= (:rule %) :escalate) (:soft-violations eval))
         "Should escalate high-stakes actuation"))))
 
-(deftest shipment-unverified-batch-blocks
-  "Shipment coordination referencing an unverified production batch is a
-  hard block."
+(deftest ^{:doc "Shipment coordination referencing an unverified production batch is a
+  hard block."} shipment-unverified-batch-blocks
   (let [st (store/mem-store)
         _ (swap! (:data st) assoc-in [:shipments "ship-unverified"]
                  {:batch "batch-002" :destination "buyer-B" :qty 100
@@ -96,8 +90,7 @@
       (is (some #(= (:rule %) :batch-not-verified) (:hard-violations eval))
         "Should block shipment of unverified batch"))))
 
-(deftest plant-not-verified-blocks
-  "Production batch from unverified plant is blocked."
+(deftest ^{:doc "Production batch from unverified plant is blocked."} plant-not-verified-blocks
   (let [st (store/mem-store)
         ;; Create a batch with unverified plant
         _ (swap! (-> st :data) assoc-in [:production-batches "batch-unverified" :plant] "plant-unknown")
@@ -111,8 +104,7 @@
       (is (some #(= (:rule %) :plant-not-verified) (:hard-violations eval))
         "Should block unverified plant"))))
 
-(deftest batch-not-verified-blocks
-  "Production batch logging with unverified batch is blocked."
+(deftest ^{:doc "Production batch logging with unverified batch is blocked."} batch-not-verified-blocks
   (let [st (store/mem-store)
         proposal (registry/batch-log-draft "batch-002"
                    ["TCVN 6113:2020"]
@@ -124,8 +116,7 @@
       (is (some #(= (:rule %) :batch-not-verified) (:hard-violations eval))
         "Should block unverified batch"))))
 
-(deftest unknown-batch-blocks
-  "Logging a completely unknown batch ID is blocked."
+(deftest ^{:doc "Logging a completely unknown batch ID is blocked."} unknown-batch-blocks
   (let [st (store/mem-store)
         proposal (registry/batch-log-draft "batch-does-not-exist"
                    ["TCVN 6113:2020"]
@@ -136,8 +127,7 @@
       (is (:holds? eval) "Should hold")
       (is (some #(= (:rule %) :batch-not-verified) (:hard-violations eval))))))
 
-(deftest low-confidence-escalates
-  "Low confidence proposals escalate to human, even if otherwise clean."
+(deftest ^{:doc "Low confidence proposals escalate to human, even if otherwise clean."} low-confidence-escalates
   (let [st (store/mem-store)
         proposal {:op :proposal/log-production-batch
                   :subject "batch-001"
@@ -152,9 +142,8 @@
       (is (some #(= (:rule %) :escalate) (:soft-violations eval))
         "Should escalate low-confidence"))))
 
-(deftest clean-proposal
-  "A proposal with all evidence, valid subject, high confidence,
-  and no high-stakes actuation or process-control is fully clean."
+(deftest ^{:doc "A proposal with all evidence, valid subject, high confidence,
+  and no high-stakes actuation or process-control is fully clean."} clean-proposal
   (let [st (store/mem-store)
         proposal {:op :proposal/schedule-maintenance
                   :subject "maint-001"

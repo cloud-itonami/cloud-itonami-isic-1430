@@ -2,22 +2,19 @@
   (:require [clojure.test :refer [deftest is]]
             [knitwear.store :as store]))
 
-(deftest mem-store-initialization
-  "In-memory store should initialize with reference data."
+(deftest ^{:doc "In-memory store should initialize with reference data."} mem-store-initialization
   (let [st (store/mem-store)]
     (is (map? st))
     (is (contains? st :data))))
 
-(deftest plant-accessors
-  "Store should provide plant lookups."
+(deftest ^{:doc "Store should provide plant lookups."} plant-accessors
   (let [st (store/mem-store)
         plant (store/plant st "plant-001")]
     (is (map? plant))
     (is (= (:name plant) "Community Knitwear Mill A"))
     (is (= (:location plant) "Vietnam"))))
 
-(deftest production-batch-accessors
-  "Store should provide batch lookups."
+(deftest ^{:doc "Store should provide batch lookups."} production-batch-accessors
   (let [st (store/mem-store)
         batch (store/production-batch st "batch-001")]
     (is (map? batch))
@@ -25,50 +22,43 @@
     (is (= (:quantity batch) 400))
     (is (= (:plant batch) "plant-001"))))
 
-(deftest shipment-accessors
-  "Store should provide shipment lookups."
+(deftest ^{:doc "Store should provide shipment lookups."} shipment-accessors
   (let [st (store/mem-store)
         shipment (store/shipment st "ship-001")]
     (is (map? shipment))
     (is (= (:batch shipment) "batch-001"))
     (is (= (:qty shipment) 400))))
 
-(deftest equipment-accessors
-  "Store should provide equipment lookups."
+(deftest ^{:doc "Store should provide equipment lookups."} equipment-accessors
   (let [st (store/mem-store)
         equipment (store/equipment st "maint-001")]
     (is (map? equipment))
     (is (= (:equipment equipment) "circular-knitting-machine-07"))
     (is (= (:status equipment) :operational))))
 
-(deftest plant-verified-guard
-  "Plant verification guard should check registration status."
+(deftest ^{:doc "Plant verification guard should check registration status."} plant-verified-guard
   (let [st (store/mem-store)]
     (is (store/plant-verified? st "plant-001"))
     (is (not (store/plant-verified? st "plant-unknown")))))
 
-(deftest batch-verified-guard
-  "Batch verification guard should check verification status."
+(deftest ^{:doc "Batch verification guard should check verification status."} batch-verified-guard
   (let [st (store/mem-store)]
     (is (store/batch-verified? st "batch-001"))
     (is (not (store/batch-verified? st "batch-002")))))
 
-(deftest batch-plant-verified-guard
-  "Batch-plant verification should check both batch and its plant."
+(deftest ^{:doc "Batch-plant verification should check both batch and its plant."} batch-plant-verified-guard
   (let [st (store/mem-store)]
     (is (store/batch-plant-verified? st "batch-001"))
     ;; batch-001's plant is verified, but we can test a non-existent batch
     (is (not (store/batch-plant-verified? st "batch-unknown")))))
 
-(deftest shipment-batch-verified-guard
-  "Shipment-batch verification should resolve through the shipment record to
-  its underlying production batch and that batch's plant."
+(deftest ^{:doc "Shipment-batch verification should resolve through the shipment record to
+  its underlying production batch and that batch's plant."} shipment-batch-verified-guard
   (let [st (store/mem-store)]
     (is (store/shipment-batch-verified? st "ship-001"))
     (is (not (store/shipment-batch-verified? st "ship-unknown")))))
 
-(deftest missing-records
-  "Accessors should handle missing records gracefully."
+(deftest ^{:doc "Accessors should handle missing records gracefully."} missing-records
   (let [st (store/mem-store)]
     (is (nil? (store/plant st "nonexistent")))
     (is (nil? (store/production-batch st "nonexistent")))
@@ -77,15 +67,13 @@
 
 ;; ----------------------------- audit ledger (append-only) -----------------------------
 
-(deftest ledger-starts-empty
-  "A freshly created store's audit ledger is empty -- no function
-  anywhere in the codebase existed to write to it before this fix."
+(deftest ^{:doc "A freshly created store's audit ledger is empty -- no function
+  anywhere in the codebase existed to write to it before this fix."} ledger-starts-empty
   (let [st (store/mem-store)]
     (is (= [] (store/ledger st)))))
 
-(deftest append-ledger-appends-in-order
-  "append-ledger! appends facts in call order and returns the appended
-  fact; the ledger is never reordered or deduplicated."
+(deftest ^{:doc "append-ledger! appends facts in call order and returns the appended
+  fact; the ledger is never reordered or deduplicated."} append-ledger-appends-in-order
   (let [st (store/mem-store)
         f1 (store/append-ledger! st {:t :committed :op :proposal/schedule-maintenance :subject "maint-001"})
         f2 (store/append-ledger! st {:t :governor-hold :op :proposal/log-production-batch :subject "batch-002"})]
@@ -93,9 +81,8 @@
     (is (= [f1 f2] (store/ledger st)))
     (is (= 2 (count (store/ledger st))))))
 
-(deftest ledger-is-per-store-instance
-  "Each mem-store has its own independent ledger -- appending to one
-  store's ledger never leaks into another store's."
+(deftest ^{:doc "Each mem-store has its own independent ledger -- appending to one
+  store's ledger never leaks into another store's."} ledger-is-per-store-instance
   (let [st1 (store/mem-store)
         st2 (store/mem-store)]
     (store/append-ledger! st1 {:t :committed :op :test})
