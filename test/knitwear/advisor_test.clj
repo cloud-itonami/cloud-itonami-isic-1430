@@ -33,11 +33,10 @@
     (is (= :actuation/coordinate-shipment (:op p)))
     (is (= "ship-001" (:subject p)))))
 
-(deftest advise-unknown-op-falls-back-with-zero-confidence
-  "An op outside the closed allowlist still produces SOME proposal here
+(deftest ^{:doc "An op outside the closed allowlist still produces SOME proposal here
   -- knitwear.governor's own closed op-allowlist check independently
   rejects it regardless, the same 'never trust the advisor's own claim'
-  discipline the Governor uses everywhere else."
+  discipline the Governor uses everywhere else."} advise-unknown-op-falls-back-with-zero-confidence
   (let [adv (advisor/mock-advisor)
         p (advisor/advise adv {:op :actuation/set-knitting-parameters :subject "machine-07"})]
     (is (= :propose (:effect p)))
