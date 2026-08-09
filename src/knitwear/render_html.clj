@@ -1,0 +1,342 @@
+(ns knitwear.render-html
+  "Build-time HTML renderer for `docs/samples/operator-console.html`.
+
+  Closes flagship checklist item 2 (com-junkawasaki/root ADR-2607189300,
+  Wave2): this repo previously had a static product face (`docs/index.html`)
+  but NO operator-console generator driven by the real actor stack. This
+  namespace drives `knitwear.operation` -> `knitwear.governor` ->
+  `knitwear.store` through a scenario adapted from this repo's own
+  `knitwear.sim` demo driver (`clojure -M:dev:run` / `clojure -M:dev-local:run`,
+  confirmed to use ids that match `knitwear.store/mem-store`'s seed data
+  exactly: plant-001 / batch-001 / batch-002 / ship-001 / maint-001), trimmed
+  to a representative subset (phase-2 auto-commit production-batch log,
+  phase-1 auto-commit maintenance schedule, always-escalate safety concern
+  + shipment coordination both human-approved, phase-0 clean hold, HARD hold
+  on unverified batch, HARD hold on process-control-forbidden) and rendered
+  deterministically -- no invented numbers, no timestamps in the page
+  content, byte-identical across reruns against the same seed.
+
+  Usage: `clojure -M:dev:render-html [out-file]`
+  (default `docs/samples/operator-console.html`)."
+  (:require [jp-go-dds.skin]
+            [clojure.string :as str]
+            [knitwear.store :as store]
+            [knitwear.operation :as op]
+            [knitwear.phase :as phase]
+            [knitwear.governor :as governor]
+            [langgraph.graph :as g]))
+
+;; ----------------------------- harness (phase-num style, matches sim) ---
+
+(defn- exec! [actor tid request phase-num]
+  (g/run* actor {:request request :phase-num phase-num} {:thread-id tid}))
+
+(defn- approve! [actor tid]
+  (g/run* actor {:approval {:status :approved :by "compliance-officer-01"}}
+          {:thread-id tid :resume? true}))
+
+(defn run-demo!
+  "Runs a fresh seeded store through a scenario mixing every disposition
+  this actor can reach, using ONLY real ids from `knitwear.store/mem-store`:
+
+    1. `:proposal/log-production-batch` batch-001 at phase 2 -- the only
+       medium-risk auto-commit set member for production logs
+       (`knitwear.phase` phase-2/3 `:auto`) -> auto-commits.
+    2. `:proposal/schedule-maintenance` maint-001 at phase 1 -- the sole
+       phase-1 auto-eligible op -> auto-commits.
+    3. `:proposal/flag-safety-concern` on batch-001 (concern-type
+       `unusual-vibration`) at phase 3 -- soft-violation
+       `:safety-concern-escalates` ALWAYS routes to human -> approved ->
+       commits. (plant/batch verification is not a hard gate for this op.)
+    4. `:actuation/coordinate-shipment` ship-001 at phase 3 -- in
+       `knitwear.governor/high-stakes`, ALWAYS escalates -> approved ->
+       commits.
+    5. `:proposal/log-production-batch` batch-001 at phase 0 -- clean but
+       not phase-eligible (`:not-in-phase-auto-set`) -> hold (distinct
+       from a governor HARD hold).
+    6. `:proposal/log-production-batch` batch-002 at phase 3 -- batch-002
+       is seeded `:verified? false` -> HARD hold `:batch-not-verified`
+       (never reaches a human).
+    7. `:proposal/flag-safety-concern` with concern-type `needle` --
+       advisor detail embeds the forbidden process-control keyword as
+       its own word token (`knitwear.governor/process-control-keywords`
+       + `process-control-block-violations`'s word split) -> HARD hold
+       `:process-control-forbidden` before the soft safety-escalation
+       gate can fire.
+
+  Returns the resulting store -- every field `render` reads is real
+  governor/store output after these graph runs actually executed."
+  []
+  (let [db (store/mem-store)
+        actor (op/build db)]
+
+    (exec! actor "t1-log"
+           {:op :proposal/log-production-batch :subject "batch-001"}
+           2)
+
+    (exec! actor "t2-maint"
+           {:op :proposal/schedule-maintenance :subject "maint-001"}
+           1)
+
+    (exec! actor "t3-safety"
+           {:op :proposal/flag-safety-concern :subject "batch-001"
+            :concern-type "unusual-vibration"}
+           3)
+    (approve! actor "t3-safety")
+
+    (exec! actor "t4-ship"
+           {:op :actuation/coordinate-shipment :subject "ship-001"}
+           3)
+    (approve! actor "t4-ship")
+
+    (exec! actor "t5-phase0"
+           {:op :proposal/log-production-batch :subject "batch-001"}
+           0)
+
+    (exec! actor "t6-unverified"
+           {:op :proposal/log-production-batch :subject "batch-002"}
+           3)
+
+    (exec! actor "t7-process"
+           {:op :proposal/flag-safety-concern :subject "batch-001"
+            :concern-type "needle"}
+           3)
+
+    db))
+
+;; ----------------------------- render helpers ---------------------------
+
+(defn- esc
+  "Minimal HTML-escape -- every rendered string passes through this."
+  [v]
+  (-> (str v)
+      (str/replace "&" "&amp;")
+      (str/replace "<" "&lt;")
+      (str/replace ">" "&gt;")
+      (str/replace "\"" "&quot;")))
+
+(defn- data [st]
+  @(:data st))
+
+(defn- last-fact-for
+  "Most recent ledger fact whose `:subject` equals `subject-id`
+  (`knitwear.operation/commit-fact` / `hold-fact`)."
+  [ledger subject-id]
+  (last (filter #(= subject-id (:subject %)) ledger)))
+
+(defn- hold-label [fact]
+  (let [rules (map :rule (:violations fact))
+        reason (:reason fact)]
+    (cond
+      (seq rules)
+      (str "HARD hold: " (str/join "," (map name rules)))
+
+      (= :not-in-phase-auto-set reason)
+      "held (not in phase auto set)"
+
+      reason
+      (str "held (" (name reason) ")")
+
+      :else
+      "held")))
+
+(defn- status-cell [fact]
+  (cond
+    (nil? fact)                      ["muted" "no activity"]
+    (= :committed (:t fact))
+    (if (:approved-by fact)
+      ["ok" (str "committed (approved by " (:approved-by fact) ")")]
+      ["ok" "committed (auto)"])
+    (= :approval-granted (:t fact))  ["ok" "approved"]
+    (= :governor-hold (:t fact))     ["critical" (hold-label fact)]
+    (= :approval-rejected (:t fact)) ["err" "approval-rejected"]
+    (= :approval-requested (:t fact)) ["warn" "awaiting approval"]
+    :else                            ["muted" "in progress"]))
+
+(defn- plants-table [db]
+  (let [plants (:plants (data db) {})]
+    (str
+     "<table>\n<thead><tr>\n"
+     "<th>id</th><th>name</th><th>location</th><th>jurisdiction</th>"
+     "<th>registered?</th>\n"
+     "</tr></thead>\n<tbody>\n"
+     (str/join
+      "\n"
+      (for [[id p] (sort-by key plants)]
+        (str "<tr>"
+             "<td><code>" (esc id) "</code></td>"
+             "<td>" (esc (:name p)) "</td>"
+             "<td>" (esc (:location p)) "</td>"
+             "<td><code>" (esc (:jurisdiction p)) "</code></td>"
+             "<td>" (if (:registered? p) "<span class=\"ok\">yes</span>"
+                        "<span class=\"critical\">no</span>") "</td>"
+             "</tr>")))
+     "\n</tbody></table>")))
+
+(defn- batches-table [db]
+  (let [ledger (store/ledger db)
+        batches (:production-batches (data db) {})]
+    (str
+     "<table>\n<thead><tr>\n"
+     "<th>id</th><th>plant</th><th>style</th><th>process</th>"
+     "<th>quantity</th><th>quality-grade</th><th>verified?</th>"
+     "<th>last ledger status</th>\n"
+     "</tr></thead>\n<tbody>\n"
+     (str/join
+      "\n"
+      (for [[id b] (sort-by key batches)
+            :let [fact (last-fact-for ledger id)
+                  [cls label] (status-cell fact)]]
+        (str "<tr>"
+             "<td><code>" (esc id) "</code></td>"
+             "<td><code>" (esc (:plant b)) "</code></td>"
+             "<td>" (esc (:style b)) "</td>"
+             "<td><code>" (esc (:process b)) "</code></td>"
+             "<td>" (esc (:quantity b)) "</td>"
+             "<td>" (esc (:quality-grade b)) "</td>"
+             "<td>" (if (:verified? b) "yes"
+                        "<span class=\"critical\">no</span>") "</td>"
+             "<td class=\"" cls "\">" (esc label) "</td>"
+             "</tr>")))
+     "\n</tbody></table>")))
+
+(defn- shipments-table [db]
+  (let [ledger (store/ledger db)
+        ships (:shipments (data db) {})]
+    (str
+     "<table>\n<thead><tr>\n"
+     "<th>id</th><th>batch</th><th>destination</th><th>qty</th>"
+     "<th>scheduled-date</th><th>status</th><th>last ledger status</th>\n"
+     "</tr></thead>\n<tbody>\n"
+     (str/join
+      "\n"
+      (for [[id s] (sort-by key ships)
+            :let [fact (last-fact-for ledger id)
+                  [cls label] (status-cell fact)]]
+        (str "<tr>"
+             "<td><code>" (esc id) "</code></td>"
+             "<td><code>" (esc (:batch s)) "</code></td>"
+             "<td>" (esc (:destination s)) "</td>"
+             "<td>" (esc (:qty s)) "</td>"
+             "<td>" (esc (:scheduled-date s)) "</td>"
+             "<td><code>" (esc (:status s)) "</code></td>"
+             "<td class=\"" cls "\">" (esc label) "</td>"
+             "</tr>")))
+     "\n</tbody></table>")))
+
+(defn- maintenance-table [db]
+  (let [ledger (store/ledger db)
+        maint (:maintenance-log (data db) {})]
+    (str
+     "<table>\n<thead><tr>\n"
+     "<th>id</th><th>equipment</th><th>last-service</th><th>status</th>"
+     "<th>last ledger status</th>\n"
+     "</tr></thead>\n<tbody>\n"
+     (str/join
+      "\n"
+      (for [[id m] (sort-by key maint)
+            :let [fact (last-fact-for ledger id)
+                  [cls label] (status-cell fact)]]
+        (str "<tr>"
+             "<td><code>" (esc id) "</code></td>"
+             "<td>" (esc (:equipment m)) "</td>"
+             "<td>" (esc (:last-service m)) "</td>"
+             "<td><code>" (esc (:status m)) "</code></td>"
+             "<td class=\"" cls "\">" (esc label) "</td>"
+             "</tr>")))
+     "\n</tbody></table>")))
+
+(defn- action-gate-table
+  "Static op-contract description, sourced from the real
+  `knitwear.phase/phase-config` (phase 3), `knitwear.phase/never-auto-commit`,
+  and `knitwear.governor/high-stakes` -- not invented, just rendered."
+  []
+  (let [ph3 (phase/phase-config 3)
+        ops (sort (phase/allowed-ops-for-phase 3))]
+    (str
+     "<table>\n<thead><tr>\n"
+     "<th>op</th><th>phase-3 auto-eligible?</th>"
+     "<th>never-auto-commit?</th><th>high-stakes (always escalate)?</th>\n"
+     "</tr></thead>\n<tbody>\n"
+     (str/join
+      "\n"
+      (for [op ops]
+        (str "<tr>"
+             "<td><code>" (esc op) "</code></td>"
+             "<td>" (if (contains? (:auto ph3) op)
+                      "<span class=\"ok\">yes</span>" "no") "</td>"
+             "<td>" (if (contains? phase/never-auto-commit op)
+                      "<span class=\"critical\">yes</span>" "no") "</td>"
+             "<td>" (cond
+                      (contains? governor/high-stakes op)
+                      "<span class=\"critical\">yes (high-stakes actuation)</span>"
+                      (= op :proposal/flag-safety-concern)
+                      "<span class=\"critical\">yes (soft safety-concern-escalates)</span>"
+                      :else "no")
+             "</td>"
+             "</tr>")))
+     "\n</tbody></table>")))
+
+(defn- audit-ledger-table [db]
+  (str
+   "<table>\n<thead><tr>\n"
+   "<th>t</th><th>op</th><th>subject</th><th>disposition</th>"
+   "<th>reason / rule</th><th>approved-by</th>\n"
+   "</tr></thead>\n<tbody>\n"
+   (str/join
+    "\n"
+    (for [f (store/ledger db)
+          :let [rules (map :rule (:violations f))
+                basis (seq rules)
+                reason (:reason f)
+                label (cond
+                        (seq basis) (str/join ", " (map (comp esc name) basis))
+                        reason (esc (name reason))
+                        (seq (:basis f))
+                        (str/join ", " (map esc (:basis f)))
+                        :else "&mdash;")]]
+      (str "<tr>"
+           "<td>" (esc (:t f)) "</td>"
+           "<td><code>" (esc (:op f)) "</code></td>"
+           "<td><code>" (esc (:subject f)) "</code></td>"
+           "<td class=\""
+           (case (:disposition f) :commit "ok" :hold "err" "muted")
+           "\">" (esc (:disposition f)) "</td>"
+           "<td>" label "</td>"
+           "<td>" (if-let [by (:approved-by f)] (esc by) "&mdash;") "</td>"
+           "</tr>")))
+   "\n</tbody></table>"))
+
+(defn render [db]
+  (str
+   "<!doctype html>\n"
+   "<html lang=\"ja\">\n<head>\n<meta charset=\"utf-8\">\n"
+   "<title>knitwear.render-html -- Knitwear Manufacturing Plant Operations Governor operator console</title>\n"
+   "<style>"
+   (jp-go-dds.skin/dds+skin)
+   "</style>\n"
+   "</head>\n<body>\n"
+   "<header class=\"bar\"><h1>Knitwear Manufacturing Plant Operations Governor -- Operator Console</h1>"
+   "<span class=\"badge\">ISIC 1430 &middot; phase table 0-3 &middot; default phase "
+   phase/default-phase
+   " &middot; safety / shipment never auto</span>"
+   "</header>\n"
+   "<main>\n"
+   "<div class=\"card\">\n<h2>Plants</h2>\n" (plants-table db) "\n</div>\n"
+   "<div class=\"card\">\n<h2>Production batches</h2>\n" (batches-table db) "\n</div>\n"
+   "<div class=\"card\">\n<h2>Shipments</h2>\n" (shipments-table db) "\n</div>\n"
+   "<div class=\"card\">\n<h2>Maintenance log</h2>\n" (maintenance-table db) "\n</div>\n"
+   "<div class=\"card\">\n<h2>Action gate (knitwear.phase &middot; knitwear.governor)</h2>\n"
+   (action-gate-table) "\n</div>\n"
+   "<div class=\"card\">\n<h2>Audit ledger</h2>\n" (audit-ledger-table db) "\n</div>\n"
+   "</main>\n"
+   "</body></html>\n"))
+
+(defn -main [& args]
+  (let [out (or (first args) "docs/samples/operator-console.html")
+        db (run-demo!)
+        html (render db)
+        parent (.getParentFile (java.io.File. out))]
+    (when parent (.mkdirs parent))
+    (spit out html)
+    (println "wrote" out "(" (count (store/ledger db)) "ledger facts )")))
