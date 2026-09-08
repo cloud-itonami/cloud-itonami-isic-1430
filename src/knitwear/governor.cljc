@@ -38,7 +38,7 @@
     - Approve yarn/fabric quality (that's the mill's responsibility)
 
   Those remain the exclusive authority of plant production engineers."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [knitwear.store :as store]))
 
 (def confidence-floor 0.6)
@@ -132,7 +132,7 @@
   engineers/technicians."
   [proposal _st]
   (let [detail (str (:detail (:value proposal) "") " " (:op proposal))
-        words (re-seq #"[\w-]+" (str/lower-case detail))
+        words (re-seq #"[\w-]+" (str/lower detail))
         forbidden (some #(contains? process-control-keywords %) words)]
     (when forbidden
       [{:rule :process-control-forbidden
