@@ -46,7 +46,7 @@
  set because safety-concern flagging and shipment coordination NEVER
  auto-commit at any phase (two independent layers -- the Governor's own
  soft-violation gates AND `phase/never-auto-commit`). Proven end-to-end
- by `test/knitwear/operation_test.clj` (ledger stays empty until a real
+ by `test/knitwear/operation_test.cljk` (ledger stays empty until a real
  commit, hold-until-approved for both safety-concern and high-stakes
  shipment coordination, governor rejection blocks commit, phase-hold for
  clean-but-not-yet-eligible proposals) through the REAL compiled graph,
