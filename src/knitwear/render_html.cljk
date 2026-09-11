@@ -6,7 +6,7 @@
   but NO operator-console generator driven by the real actor stack. This
   namespace drives `knitwear.operation` -> `knitwear.governor` ->
   `knitwear.store` through a scenario adapted from this repo's own
-  `knitwear.sim` demo driver (`clojure -M:dev:run` / `clojure -M:dev-local:run`,
+  `knitwear.sim` demo driver (`kbb -M:dev:run` / `kbb -M:dev-local:run`,
   confirmed to use ids that match `knitwear.store/mem-store`'s seed data
   exactly: plant-001 / batch-001 / batch-002 / ship-001 / maint-001), trimmed
   to a representative subset (phase-2 auto-commit production-batch log,
@@ -16,7 +16,7 @@
   deterministically -- no invented numbers, no timestamps in the page
   content, byte-identical across reruns against the same seed.
 
-  Usage: `clojure -M:dev:render-html [out-file]`
+  Usage: `kbb -M:dev:render-html [out-file]`
   (default `docs/samples/operator-console.html`)."
   (:require [jp-go-dds.skin]
             [kotoba.lang.text :as str]
