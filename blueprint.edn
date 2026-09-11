@@ -50,8 +50,8 @@
  commit, hold-until-approved for both safety-concern and high-stakes
  shipment coordination, governor rejection blocks commit, phase-hold for
  clean-but-not-yet-eligible proposals) through the REAL compiled graph,
- plus a `clojure -M:dev-local:run` demo runner producing real ledger
+ plus a `kbb -M:dev-local:run` demo runner producing real ledger
  entries for every scenario. 54 tests / 194 assertions green
- (`clojure -M:dev-local:test`), clj-kondo 0 errors. CI
+ (`kbb -M:dev-local:test`), clj-kondo 0 errors. CI
  (`.github/workflows/ci.yml`, sibling-checkout pattern for
  `:local/root` deps) was missing and is added in this fix."}

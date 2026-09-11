@@ -1,5 +1,5 @@
 (ns knitwear.sim
-  "Demo driver -- `clojure -M:dev-local:run` / `clojure -M:dev:run`.
+  "Demo driver -- `kbb -M:dev-local:run` / `kbb -M:dev:run`.
   Drives the REAL compiled `langgraph-clj` `StateGraph`
   (`knitwear.operation/build`) end-to-end through a phase-2 auto-commit
   (production-batch logging), a phase-1 auto-commit (maintenance

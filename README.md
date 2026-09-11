@@ -58,9 +58,9 @@ Operating states: `spec → design → produce → inspect → package → audit
 ## Run it
 
 ```bash
-clojure -M:dev:run    # drive the demo through one OperationActor scenario set
-clojure -M:test       # run the test suite
-clojure -M:lint        # clj-kondo static analysis
+kbb -M:dev:run    # drive the demo through one OperationActor scenario set
+kbb -M:test       # run the test suite
+kbb -M:lint        # clj-kondo static analysis
 ```
 
 ## Why open
