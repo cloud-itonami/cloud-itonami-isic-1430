@@ -1,0 +1,34 @@
+;; What this vertical's robot physically does, declared for
+;; kotoba.robotics.process (kotoba-lang/robotics). `kbb -M:dev:physics` runs it.
+;;
+;; README has no "Robotics premise" section. The plant knits garments to
+;; shape on flat and circular knitting machines and links the panels. Its
+;; physical work here: steam-setting knitted garments on a steam press, and
+;; carrying bins of knitted panels from the knitting floor to linking.
+;;
+;; Every number without a cited source is marked `estimate` in its :basis.
+;; Replacing an estimate with a sourced value is this bot's growth work.
+{:physics/schema "itonami.physical-ai.spec.v1"
+ :repo "cloud-itonami/cloud-itonami-isic-1430"
+ :cases
+ [{:id :garment-steam-set
+   :kind :thermal
+   :procedure "a knitted garment lies on the steam press; condensing steam on both faces sets it until its middle reaches setting temperature; swept :thickness-m is HALF the thickness (heated face to mid-plane), mid-plane adiabatic by symmetry, so the back face is the middle"
+   :params {:conductivity-w-mk 0.05 :density-kg-m3 200.0 :specific-heat-j-kgk 1400.0
+            :t0-c 25.0 :t-hot-c 100.0 :h-front-w-m2k 200.0 :t-back-ambient-c 100.0 :h-back-w-m2k 0.0
+            :threshold-c 95.0 :duration-s 120.0 :nodes 11}
+   :sweep {:param :thickness-m :values [0.001 0.0015 0.002 0.003 0.004]}
+   :quantity :time-to-threshold-s
+   :limit {:max 20.0 :basis "estimate: 20 s steaming cycle on the press"}
+   :boundary {:lo 0.0005 :hi 0.01}}
+  {:id :panel-bin-to-linking
+   :kind :transport
+   :procedure "AMR carries a bin of knitted garment panels from the knitting floor to the linking section"
+   :params {:mass-kg 60.0 :payload-kg 40.0 :v-max-mps 1.2 :a-max-mps2 0.6
+            :brake-decel-mps2 1.0 :drive-force-n 150.0 :crr 0.015
+            :cog-height-m 0.30 :payload-cog-height-m 0.55 :support-half-length-m 0.30
+            :max-time-s 1200.0}
+   :sweep {:param :distance-m :values [20.0 40.0 60.0 80.0 100.0 120.0]}
+   :quantity :cycle-time-s
+   :limit {:max 90.0 :basis "estimate: one bin must reach linking within a 90 s share of the linker's panel buffer"}
+   :boundary {:lo 10.0 :hi 300.0}}]}
