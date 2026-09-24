@@ -14,7 +14,7 @@
   rejection blocks commit entirely. Mirrors
   `transportops.operation-test` (cloud-itonami-isic-869) /
   `tobaccoops.operation-test` (cloud-itonami-isic-0115)."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [langgraph.graph :as g]
             [knitwear.operation :as operation]
             [knitwear.store :as store]))

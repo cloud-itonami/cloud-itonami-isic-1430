@@ -1,5 +1,5 @@
 (ns knitwear.governor-contract-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [knitwear.store :as store]
             [knitwear.advisor :as advisor]
             [knitwear.governor :as governor]
