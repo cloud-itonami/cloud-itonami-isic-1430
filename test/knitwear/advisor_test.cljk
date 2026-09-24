@@ -3,7 +3,7 @@
   point `knitwear.operation`'s `:advise` graph node calls. Did not exist
   before this fix (the op-specific proposal builders were only ever
   called directly from `knitwear.sim`'s hand-chained pipeline)."
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [knitwear.advisor :as advisor]))
 
 (deftest advise-dispatches-log-production-batch

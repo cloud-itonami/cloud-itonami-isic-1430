@@ -1,5 +1,5 @@
 (ns knitwear.store-contract-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [knitwear.store :as store]))
 
 (deftest ^{:doc "In-memory store should initialize with reference data."} mem-store-initialization
